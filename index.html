@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Monitor ONs</title>
+<style>
+:root {
+  --navy: #0a2540; --navy2: #12467a; --oro: #c9a227; --texto: #1b2430; --gris: #6b7787; --gris2: #8592a3;
+  --borde: #e2e7ee; --linea: #e8ecf2; --cebra: #f7f9fb; --fondo: #f3f5f8; --hover: #eaf1f9;
+  --pos: #0f7a43; --neg: #b42318; --alerta: #fdf0c4; --sel: #dfeaf7;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--fondo); color: var(--texto); font: 13px/1.4 Inter, "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+.num, td, .kpi b { font-variant-numeric: tabular-nums; }
+
+/* ---------- barra superior */
+header { position: sticky; top: 0; z-index: 20; background: linear-gradient(120deg, var(--navy) 0%, var(--navy2) 100%); color: #fff; box-shadow: 0 1px 6px rgba(10,37,64,.25); }
+.barra { max-width: 1280px; margin: 0 auto; padding: 10px 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.marca { font-size: 17px; font-weight: 700; letter-spacing: -.2px; margin-right: auto; }
+.marca span { font-weight: 400; color: #c9d8ea; }
+.rueda { display: flex; align-items: center; gap: 8px; }
+.rueda select { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28); border-radius: 6px; color: #fff; padding: 5px 8px; }
+.rueda select option { color: var(--texto); }
+.estado { font-size: 12px; color: #c9d8ea; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.punto { width: 8px; height: 8px; border-radius: 50%; background: #8592a3; }
+.vivo .punto { background: #3ddc84; animation: pulso 1.6s infinite; }
+@keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(61,220,132,.6); } 70% { box-shadow: 0 0 0 7px rgba(61,220,132,0); } 100% { box-shadow: 0 0 0 0 rgba(61,220,132,0); } }
+.btn-claro { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28); color: #fff; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.btn-claro:hover { background: rgba(255,255,255,.2); }
+.btn-claro:disabled { opacity: .5; cursor: default; }
+.tabs { max-width: 1280px; margin: 0 auto; padding: 8px 16px 0; display: flex; gap: 4px; }
+.tab { background: none; border: 0; color: #c9d8ea; padding: 8px 14px 9px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; }
+.tab:hover { color: #fff; }
+.tab.activa { color: #fff; border-bottom-color: var(--oro); }
+
+main { max-width: 1280px; margin: 0 auto; padding: 14px 16px 40px; }
+.aviso { background: #fff7e0; border: 1px solid #f0d78a; color: #6b5310; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }
+.aviso.error { background: #fdecea; border-color: #f2b8b5; color: var(--neg); }
+.aviso button { margin-left: 8px; }
+
+/* ---------- KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.kpi { background: #fff; border: 1px solid var(--borde); border-top: 3px solid var(--navy2); border-radius: 6px; padding: 8px 12px; }
+.kpi > span { display: block; color: var(--gris); font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; }
+.kpi b { display: block; font-size: 18px; margin-top: 2px; }
+.kpi > i { display: block; font-style: normal; color: var(--gris); font-size: 11px; }
+
+/* ---------- herramientas */
+.herramientas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 4px 0 6px; }
+.herramientas label { color: var(--gris); display: flex; align-items: center; gap: 6px; }
+.campo { background: #fff; border: 1px solid #cfd7e2; border-radius: 6px; padding: 6px 9px; }
+.campo:focus { outline: 2px solid #9cc0e8; outline-offset: -1px; }
+#buscar { width: 260px; max-width: 100%; }
+#minimo { width: 110px; text-align: right; }
+.contador { color: var(--gris); margin-left: auto; }
+.grupo { display: inline-flex; border: 1px solid #cfd7e2; border-radius: 6px; overflow: hidden; background: #fff; }
+.grupo button { border: 0; background: none; padding: 5px 11px; cursor: pointer; color: var(--gris); }
+.grupo button + button { border-left: 1px solid #cfd7e2; }
+.grupo button.activa { background: var(--navy2); color: #fff; }
+.grupo button:disabled { color: #c3cad4; cursor: default; }
+
+/* ---------- tablas */
+h2 { font-size: 14.5px; color: var(--navy); margin: 20px 0 6px; padding-left: 8px; border-left: 4px solid var(--oro); }
+h2 small { color: var(--gris); font-weight: 400; font-size: 12px; margin-left: 4px; }
+.scroll { overflow-x: auto; background: #fff; border: 1px solid var(--borde); border-radius: 6px; }
+.scroll.alto { max-height: 70vh; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { position: sticky; top: 0; background: var(--navy); color: #fff; font-weight: 600; font-size: 11.5px; padding: 6px 8px; text-align: right; white-space: nowrap; cursor: pointer; user-select: none; }
+th:hover { background: var(--navy2); }
+th.ord::after { content: " ▼"; font-size: 9px; color: var(--oro); }
+th.ord.asc::after { content: " ▲"; }
+td { padding: 4.5px 8px; border-bottom: 1px solid var(--linea); text-align: right; white-space: nowrap; }
+tbody tr:nth-child(even) td { background: var(--cebra); }
+tbody tr.clic { cursor: pointer; }
+tbody tr.clic:hover td { background: var(--hover); }
+tbody tr.sel td { background: var(--sel); }
+.l { text-align: left; }
+.p { color: var(--pos); } .n { color: var(--neg); } .m { color: var(--gris2); }
+td.a { background: var(--alerta) !important; }
+.esp { font-weight: 700; color: var(--navy); }
+.supuesto { display: inline-block; margin-left: 3px; padding: 0 4px; border-radius: 3px; background: var(--alerta); color: #6b5310; font-weight: 700; font-size: 10.5px; cursor: help; }
+.supuesto-txt { background: var(--alerta); color: #6b5310; padding: 0 4px; border-radius: 3px; }
+.mk { margin-left: 4px; color: var(--gris2); font-size: 9.5px; font-weight: 600; letter-spacing: .3px; }
+.pase { display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; background: var(--sel); color: var(--navy2); font-weight: 600; font-size: 10.5px; cursor: help; }
+.vacio { color: var(--gris); padding: 18px; text-align: center; background: #fff; border: 1px solid var(--borde); border-radius: 6px; }
+.nota-fila td { color: var(--gris); font-style: italic; text-align: left; }
+
+/* ---------- detalle por título */
+.selector { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+#ticker { width: 300px; max-width: 100%; text-transform: uppercase; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: #fff; border: 1px solid #cfd7e2; border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+.chip:hover { border-color: var(--navy2); color: var(--navy2); }
+.chip b { color: var(--navy); }
+.ficha { background: #fff; border: 1px solid var(--borde); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+.ficha h3 { margin: 0; font-size: 20px; color: var(--navy); }
+.ficha h3 span { font-size: 15px; font-weight: 500; color: var(--texto); margin-left: 6px; }
+.ficha .sub { color: var(--gris); margin-top: 2px; }
+.ficha .kpis { margin: 10px 0 0; }
+.ficha .kpi { border-top-width: 2px; padding: 6px 10px; }
+.ficha .kpi b { font-size: 15.5px; }
+.resumen-ops { color: var(--gris); }
+.resumen-ops b { color: var(--texto); }
+
+.notas { margin-top: 22px; padding-top: 8px; border-top: 1px solid var(--borde); font-size: 11.5px; color: var(--gris); line-height: 1.6; }
+.notas p { margin: 0 0 3px; }
+
+/* ---------- carga */
+.carga { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 70px 16px; color: var(--gris); text-align: center; }
+.giro { width: 28px; height: 28px; border: 3px solid #d5dde8; border-top-color: var(--navy2); border-radius: 50%; animation: giro .9s linear infinite; }
+.giro.chico { width: 12px; height: 12px; border-width: 2px; border-color: rgba(255,255,255,.3); border-top-color: #fff; }
+@keyframes giro { to { transform: rotate(360deg); } }
+[hidden] { display: none !important; }
+
+@media (max-width: 640px) {
+  .marca { width: 100%; }
+  #buscar, #ticker { width: 100%; }
+  .contador { margin-left: 0; }
+  .kpi b { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="barra">
+    <div class="marca">ONs y subsoberanos <span>· Monitor</span></div>
+    <div class="rueda">
+      <label for="dia" style="color:#c9d8ea">Rueda</label>
+      <select id="dia"></select>
+    </div>
+    <div class="estado" id="estado"><span class="punto"></span><span id="estado-txt">–</span></div>
+    <button class="btn-claro" id="actualizar" title="Volver a bajar los datos">Actualizar</button>
+  </div>
+  <nav class="tabs">
+    <button class="tab activa" data-vista="resumen">Resumen</button>
+    <button class="tab" data-vista="operaciones">Operaciones por título</button>
+  </nav>
+</header>
+
+<main>
+  <div id="avisos"></div>
+  <div id="carga" class="carga" hidden><div class="giro"></div><div id="carga-txt"></div></div>
+
+  <section id="vista-resumen">
+    <div class="kpis" id="kpis"></div>
+    <div class="herramientas">
+      <span class="grupo" id="mercados" title="De qué mercado salen precios, TIR y volumen"></span>
+      <input id="buscar" class="campo" type="search" placeholder="Buscar ticker o emisor" autocomplete="off">
+      <label>Volumen mayor a USD <input id="minimo" class="campo" inputmode="numeric"></label>
+      <span class="contador" id="contador"></span>
+    </div>
+    <div id="secciones"></div>
+  </section>
+
+  <section id="vista-operaciones" hidden>
+    <div class="selector">
+      <input id="ticker" class="campo" list="tickers" placeholder="Ticker (ej. YM34O, YMCID)" autocomplete="off">
+      <datalist id="tickers"></datalist>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div id="detalle"></div>
+  </section>
+
+  <div class="notas" id="notas"></div>
+</main>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+// Versión web (GitHub Pages): sin servidor, los días salen de dias.json y cada rueda de
+// datos/operaciones_AAAA-MM-DD.json.gz. informe/web.py lo pasa a true al armar el sitio.
+const WEB = true;
+const MONEDA = { ARS: "Pesos", USD: "MEP", EXT: "Cable" };
+const DIVISA = { ARS: "$", USD: "US$", EXT: "US$" };
+const MERCADOS = ["BYMA", "SENEBI", "MAE"];
+const APROX = 1, PASE = 2;   // marca de una operación (o[6])
+// Las ruedas guardadas antes de sumar SENEBI y MAE no traen el mercado: son todas de BYMA.
+const mercadoSeg = s => s.mercado || "BYMA";
+const mercadoOp = o => o[7] || "BYMA";
+const enByma = t => t.segmentos.some(s => mercadoSeg(s) === "BYMA");
+const monedasDe = t => Object.fromEntries(t.segmentos.map(s => [s.ticker, s.moneda]));
+// El resumen se ve por mercado: BYMA (como el mail), SENEBI, MAE o los tres juntos.
+const VISTAS = [...MERCADOS, "Todos"];
+
+const E = {
+  dias: [], rueda: null, abierto: false, refresco: 60, minimoDefecto: 140000,
+  fecha: null, datos: null, porEspecie: {}, porTicker: {}, filas: {},
+  vista: "resumen", especie: null, busqueda: "", minimo: null, mercadoResumen: "BYMA",
+  mercado: "todos", moneda: "todas", plazo: "todos", modo: "ops",
+  ordenResumen: null, ordenOps: { campo: "vn", dir: -1 }, ordenPrecios: { campo: "vn", dir: -1 },
+  timer: null, cargando: false,
+};
+
+// ---------------------------------------------------------------- formato
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (x, d = 2) => x == null || isNaN(x) ? "–" : x.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (x, d = 2) => x == null ? "–" : num(x * 100, d) + "%";
+const decPrecio = p => (p ?? 0) < 10000 ? 2 : 0;
+const precio = p => num(p, decPrecio(p));
+const fechaCorta = iso => iso && iso.length >= 10 ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : "–";
+const fechaLarga = iso => new Date(iso + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+const usdCorto = x => x >= 1e6 ? `USD ${num(x / 1e6, 1)} M` : x >= 1e3 ? `USD ${num(x / 1e3, 0)} mil` : `USD ${num(x, 0)}`;
+const operados = n => n === 1 ? "1 operado" : `${n} operados`;
+const hardDollar = t => t.pago === "CABLE" || t.pago === "MEP";
+const signo = v => v == null ? "" : v > 0 ? "p" : v < 0 ? "n" : "";
+const varTxt = v => v == null ? "–" : (v > 0 ? "+" : "") + num(v) + "%";
+const sumar = (xs, f) => xs.reduce((a, x) => a + (f(x) || 0), 0);
+const sumarDias = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+
+// ---------------------------------------------------------------- datos
+async function pedir(url) {
+  const r = await fetch(url, { cache: "no-cache" });
+  const j = await r.json().catch(() => ({ error: `Error ${r.status}` }));
+  if (!r.ok) { const e = new Error(j.error || `Error ${r.status}`); e.status = r.status; throw e; }
+  return j;
+}
+
+// En la web cada rueda es un .json.gz que se descomprime acá (salvo que ya venga descomprimido).
+async function pedirGz(url) {
+  const r = await fetch(url, { cache: "no-cache" });
+  if (!r.ok) { const e = new Error(r.status === 404 ? "Esa rueda no está publicada" : `Error ${r.status}`); e.status = r.status; throw e; }
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return JSON.parse(new TextDecoder().decode(bytes));
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).json();
+}
+
+async function cargarDias() {
+  const j = WEB ? { ...await pedir("dias.json"), rueda: null, abierto: false } : await pedir("/api/dias");
+  Object.assign(E, { dias: j.dias, rueda: j.rueda, abierto: j.abierto, refresco: j.refresco, minimoDefecto: j.volumen_minimo });
+  if (E.minimo == null) E.minimo = j.volumen_minimo;
+  const sel = $("#dia");
+  sel.innerHTML = E.dias.map(d => `<option value="${d}">${fechaLarga(d)}${d === E.rueda && E.abierto ? " · en vivo" : ""}</option>`).join("");
+  if (E.fecha) sel.value = E.fecha;
+}
+
+function enVivo() { return E.fecha === E.rueda && E.abierto; }
+
+async function cargarDia(fecha, { actualizar = false, silencioso = false } = {}) {
+  clearTimeout(E.timer);
+  E.fecha = fecha;
+  $("#dia").value = fecha;
+  E.cargando = true;
+  pintarEstado();
+  if (!silencioso) {
+    E.datos = null;
+    const vivo = fecha === E.rueda;
+    mostrarCarga(vivo
+      ? "Armando la rueda en vivo: precios, flujos de fondos y operaciones de BYMA, SENEBI y MAE.<br>La primera vez del día puede tardar uno o dos minutos."
+      : "Cargando la rueda…");
+  }
+  try {
+    E.datos = WEB
+      ? await pedirGz(`datos/operaciones_${fecha}.json.gz`)
+      : await pedir(`/api/dia?fecha=${fecha}${actualizar ? "&actualizar=1" : ""}`);
+    indexar();
+    limpiarAvisos();
+  } catch (e) {
+    if (silencioso && E.datos) {
+      aviso(`No se pudo actualizar: ${esc(e.message)}`, true);
+    } else if (e.status === 404 && fecha === E.rueda && !actualizar) {
+      const otra = E.dias.find(d => d < fecha);
+      if (otra) {
+        aviso(`No hay operaciones del ${fechaCorta(fecha)} (feriado o mercado todavía sin operar). Se muestra la rueda anterior.`);
+        E.cargando = false;
+        return cargarDia(otra);
+      }
+      throw e;
+    } else {
+      E.cargando = false;
+      ocultarCarga();
+      pintarEstado();
+      aviso(`${esc(e.message)} <button class="campo" onclick="cargarDia('${fecha}')">Reintentar</button>`, true);
+      $("#vista-resumen").hidden = $("#vista-operaciones").hidden = true;
+      return;
+    }
+  } finally {
+    E.cargando = false;
+  }
+  ocultarCarga();
+  escribirHash();
+  pintar();
+  if (enVivo()) E.timer = setTimeout(refrescar, E.refresco * 1000);
+}
+
+async function refrescar() {
+  try { await cargarDias(); } catch (e) { /* sigue con lo que tiene */ }
+  if (enVivo() || E.fecha === E.rueda) await cargarDia(E.fecha, { silencioso: true });
+}
+
+// La web se publica después de cada rueda: si la página quedó abierta, avisa cuando hay una nueva.
+async function buscarRuedaNueva() {
+  const ultima = E.dias[0];
+  try { await cargarDias(); } catch (e) { return; }
+  if (E.dias[0] !== ultima && E.fecha !== E.dias[0])
+    aviso(`Ya está publicada la rueda del ${fechaLarga(E.dias[0])}. <button class="campo" onclick="cargarDia('${E.dias[0]}')">Ver</button>`);
+}
+
+function indexar() {
+  E.porEspecie = {}; E.porTicker = {}; E.filas = {};
+  for (const t of E.datos.titulos) {
+    E.porEspecie[t.especie] = t;
+    for (const tk of [t.especie, ...Object.values(t.tickers)]) E.porTicker[tk] = t.especie;
+  }
+  $("#tickers").innerHTML = E.datos.titulos
+    .slice().sort((a, b) => a.especie.localeCompare(b.especie))
+    .map(t => `<option value="${esc(t.especie)}">${esc(t.emisor)} · ${esc(t.seccion)}</option>`).join("");
+}
+
+// ---------------------------------------------------------------- avisos y estado
+function aviso(html, error = false) {
+  $("#avisos").innerHTML = `<div class="aviso${error ? " error" : ""}">${html}</div>`;
+}
+function limpiarAvisos() { if (!$("#avisos .aviso:not(.error)")) $("#avisos").innerHTML = ""; }
+function mostrarCarga(html) {
+  $("#carga-txt").innerHTML = html; $("#carga").hidden = false;
+  $("#vista-resumen").hidden = $("#vista-operaciones").hidden = true; $("#notas").hidden = true;
+}
+function ocultarCarga() { $("#carga").hidden = true; $("#notas").hidden = false; }
+
+function pintarEstado() {
+  const est = $("#estado"), txt = $("#estado-txt");
+  est.classList.toggle("vivo", enVivo());
+  $("#actualizar").disabled = E.cargando || E.fecha !== E.rueda;
+  $("#actualizar").title = E.fecha === E.rueda ? "Volver a bajar los datos de la rueda" : "Las ruedas anteriores ya están cerradas";
+  const g = E.datos?.generado;
+  const hora = g ? g.slice(11, 19) : "";
+  if (E.cargando && E.datos) { txt.innerHTML = `<span class="giro chico" style="display:inline-block;vertical-align:-2px"></span> actualizando…`; return; }
+  if (!g) { txt.textContent = E.cargando ? "cargando…" : "–"; return; }
+  txt.textContent = enVivo()
+    ? `En vivo · actualizado ${hora}`
+    : `Datos al ${fechaCorta(g.slice(0, 10))} ${hora.slice(0, 5)}`;
+}
+
+// ---------------------------------------------------------------- navegación
+function escribirHash() {
+  const p = new URLSearchParams();
+  if (E.fecha) p.set("dia", E.fecha);
+  if (E.mercadoResumen !== "BYMA") p.set("mercado", E.mercadoResumen);
+  if (E.vista === "operaciones") { p.set("vista", "operaciones"); if (E.especie) p.set("t", E.especie); }
+  const h = "#" + p.toString();
+  if (location.hash !== h) history.replaceState(null, "", h);
+}
+function leerHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  const mercado = VISTAS.includes(p.get("mercado")) ? p.get("mercado") : "BYMA";
+  return { dia: p.get("dia"), vista: p.get("vista") || "resumen", t: p.get("t"), mercado };
+}
+
+// Con `mercado`, el detalle abre filtrado en ese mercado.
+function irA(vista, especie, mercado) {
+  E.vista = vista;
+  if (especie !== undefined && especie !== E.especie) {
+    E.especie = especie; E.mercado = "todos"; E.moneda = "todas"; E.plazo = "todos";
+  }
+  if (mercado) Object.assign(E, { mercado, moneda: "todas", plazo: "todos" });
+  escribirHash();
+  pintar();
+  window.scrollTo({ top: 0 });
+}
+
+// ---------------------------------------------------------------- pintar
+function pintar() {
+  pintarEstado();
+  if (!E.datos) return;
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("activa", b.dataset.vista === E.vista));
+  $("#vista-resumen").hidden = E.vista !== "resumen";
+  $("#vista-operaciones").hidden = E.vista !== "operaciones";
+  document.title = `Monitor ONs · ${fechaCorta(E.fecha)}`;
+  if (E.vista === "resumen") pintarResumen(); else pintarDetalle();
+  pintarNotas();
+}
+
+// ---------------------------------------------------------------- resumen por mercado
+// Una fila por título con los campos del resumen (precio, TIR, volumen, TC implícitos) de ese mercado.
+// BYMA: lo que calcula el informe, igual que el mail. SENEBI, MAE y Todos se arman con las operaciones.
+function filas(mercado) {
+  if (!E.filas[mercado]) E.filas[mercado] = E.datos.titulos.map(t => mercado === "BYMA" ? filaByma(t) : filaMercado(t, mercado)).filter(Boolean);
+  return E.filas[mercado];
+}
+
+function filaByma(t) {
+  if (!enByma(t)) return null;
+  const vn = { ARS: 0, USD: 0, EXT: 0 };
+  for (const s of t.segmentos) if (mercadoSeg(s) === "BYMA") vn[s.moneda] += s.vn;
+  return { ...t, vnMoneda: vn, pases: 0, ultimo: null };
+}
+
+// Último precio de cada segmento ("moneda|plazo") en esos mercados: el de la última operación que no es pase o,
+// si solo hubo pases, el del último pase. Un segmento sin operaciones (no se pudieron bajar) queda con el del panel.
+function ultimos(t, mercados, monedaDe) {
+  const res = {};
+  for (const o of t.operaciones) {
+    const mk = mercadoOp(o), k = monedaDe[o[1]] + "|" + o[2], prev = res[k], pase = o[6] === PASE;
+    if (mercados.includes(mk) && (!prev || (prev.pase && !pase) || (pase === prev.pase && o[0] >= prev.hora)))
+      res[k] = { precio: o[4], tir: o[5], mercado: mk, hora: o[0], pase };
+  }
+  for (const s of t.segmentos) {
+    const k = s.moneda + "|" + s.plazo;
+    if (!res[k] && s.precio && mercados.includes(mercadoSeg(s)))
+      res[k] = { precio: s.precio, tir: s.tir, mercado: mercadoSeg(s), hora: "", pase: false };
+  }
+  return res;
+}
+
+function filaMercado(t, mercado) {
+  const ctx = E.datos.contexto, mercados = mercado === "Todos" ? MERCADOS : [mercado];
+  if (!t.segmentos.some(s => mercados.includes(mercadoSeg(s)))) return null;
+  const monedaDe = monedasDe(t), hd = hardDollar(t);
+  const monto = { ARS: 0, USD: 0, EXT: 0 }, vn = { ARS: 0, USD: 0, EXT: 0 };
+  let pases = 0;
+  // Volumen: BYMA con los paneles, como el mail; SENEBI y MAE sumando sus operaciones, sin los pases.
+  if (mercados.includes("BYMA"))
+    for (const s of t.segmentos) if (mercadoSeg(s) === "BYMA") { monto[s.moneda] += s.monto; vn[s.moneda] += s.vn; }
+  for (const o of t.operaciones) {
+    const mk = mercadoOp(o), m = monedaDe[o[1]];
+    if (mk === "BYMA" || !mercados.includes(mk)) continue;
+    if (o[6] === PASE) pases += o[3] * o[4] / 100 / (m === "ARS" ? ctx.mep : 1);
+    else { monto[m] += o[3] * o[4] / 100; vn[m] += o[3]; }
+  }
+  const f = {
+    ...t, vnMoneda: vn, pases, var: null, precio: null, precio_alternativo: false, tir: null, tc_mep: null, tc_ccl: null, ultimo: null,
+    vol_usd: monto.USD + monto.EXT + monto.ARS / ctx.mep, vol_ars: monto.ARS + monto.USD * ctx.mep + monto.EXT * ctx.ccl,
+  };
+  // Precio como en el mail: el de la moneda de pago (24hs y si no, CI); si no operó, el del otro segmento en
+  // dólares y si tampoco, el de pesos al MEP o CCL de referencia.
+  const ult = ultimos(t, mercados, monedaDe), de = m => ult[m + "|24hs"] || ult[m + "|CI"];
+  const orden = !hd ? ["ARS"] : t.pago === "CABLE" ? ["EXT", "USD", "ARS"] : ["USD", "EXT", "ARS"];
+  for (const [k, m] of orden.entries()) {
+    const u = de(m);
+    if (!u) continue;
+    const p = hd && m === "ARS" ? u.precio / (t.pago === "CABLE" ? ctx.ccl : ctx.mep) : u.precio;
+    Object.assign(f, { precio: p, precio_alternativo: k > 0, tir: u.tir, ultimo: u });
+    break;
+  }
+  if (hd) for (const p of ["24hs", "CI"]) {
+    const o = ult["ARS|" + p], d = ult["USD|" + p], c = ult["EXT|" + p];
+    if (f.tc_mep == null && o && d) f.tc_mep = o.precio / d.precio;
+    if (f.tc_ccl == null && o && c) f.tc_ccl = o.precio / c.precio;
+  }
+  f.precio_ars = de("ARS")?.precio ?? null;
+  f.tc_vto = f.precio_ars && t.cobro_usd ? f.precio_ars / t.cobro_usd : null;
+  return f;
+}
+
+function visibles() {
+  const q = E.busqueda.trim().toUpperCase();
+  const ts = filas(E.mercadoResumen);
+  if (q) return ts.filter(t => [t.especie, t.emisor, ...Object.values(t.tickers)].some(x => (x || "").toUpperCase().includes(q)));
+  return ts.filter(t => t.vol_usd > E.minimo);
+}
+
+function resumen(ts) {
+  const hd = ts.filter(t => t.clase === "ON" && hardDollar(t));
+  const pond = (attr, m) => {
+    let a = 0, w = 0;
+    for (const t of hd) if (t[attr]) { const p = Math.min(t.vnMoneda.ARS, t.vnMoneda[m]); a += t[attr] * p; w += p; }
+    return w ? a / w : null;
+  };
+  const ons = ts.filter(t => t.clase === "ON"), subs = ts.filter(t => t.clase === "SUB");
+  return { mep: pond("tc_mep", "USD"), ccl: pond("tc_ccl", "EXT"), volOns: sumar(ons, t => t.vol_usd), volSubs: sumar(subs, t => t.vol_usd), nOns: ons.length, nSubs: subs.length };
+}
+
+function pintarResumen() {
+  const mercado = E.mercadoResumen;
+  $("#mercados").innerHTML = VISTAS.map(m => `<button data-mercado-resumen="${m}" class="${m === mercado ? "activa" : ""}"${m === mercado || filas(m).length ? "" : " disabled"}>${m}</button>`).join("");
+  const ctx = E.datos.contexto, ts = visibles().sort((a, b) => b.vol_usd - a.vol_usd), r = resumen(ts);
+  const fx = ctx.referencia_fx;
+  const kpis = [
+    [`Dólar MEP (${fx})`, num(ctx.mep), ""],
+    [`Dólar CCL (${fx})`, num(ctx.ccl), ""],
+    ["Brecha CCL / MEP", pct(ctx.ccl / ctx.mep - 1), ""],
+    ["MEP implícito ONs (pond.)", num(r.mep), r.mep ? `${varTxt((r.mep / ctx.mep - 1) * 100)} vs ${fx}` : ""],
+    ["CCL implícito ONs (pond.)", num(r.ccl), r.ccl ? `${varTxt((r.ccl / ctx.ccl - 1) * 100)} vs ${fx}` : ""],
+    ["Volumen ONs / Subsob.", `${usdCorto(r.volOns).slice(4)} / ${usdCorto(r.volSubs).slice(4)}`, `${r.nOns} ONs · ${r.nSubs} subsoberanos`],
+  ];
+  // Los pases, de todo el mercado: los títulos que solo operaron en pases no pasan el volumen mínimo.
+  const pases = sumar(filas(mercado), t => t.pases);
+  if (pases) kpis.push(["Pases CI/24hs", usdCorto(pases).slice(4), "todo el mercado; no suman al volumen"]);
+  $("#kpis").innerHTML = kpis.map(([t, v, i]) => `<div class="kpi"><span>${esc(t)}</span><b>${v}</b>${i ? `<i>${i}</i>` : ""}</div>`).join("");
+  const total = filas(mercado).length, donde = mercado === "Todos" ? "" : ` en ${mercado}`;
+  $("#contador").textContent = E.busqueda.trim()
+    ? `${ts.length} de ${total} títulos operados${donde} (la búsqueda incluye todos los volúmenes)`
+    : `${ts.length} de ${total} títulos operados${donde}`;
+
+  if (!ts.length) {
+    $("#secciones").innerHTML = `<div class="vacio">${total ? "No hay títulos con ese filtro." : `No hay operaciones de ${mercado} en esta rueda.`}</div>`;
+    return;
+  }
+  const secciones = new Map();
+  for (const t of ts) { if (!secciones.has(t.seccion)) secciones.set(t.seccion, []); secciones.get(t.seccion).push(t); }
+  // Mismo orden que el mail: ONs ley local MEP, dólar implícito al vencimiento y después el resto.
+  const orden = [...secciones.keys()].sort((a, b) => ordenSeccion(a) - ordenSeccion(b));
+  let html = secciones.has(ANTES_DE_CORTAS) ? "" : tablaCortas(ts);
+  for (const seccion of orden) {
+    const lista = secciones.get(seccion);
+    html += `<h2>${esc(seccion)} <small>· ${operados(lista.length)} · ${usdCorto(sumar(lista, t => t.vol_usd))}</small></h2>`;
+    html += tablaTitulos(columnasSeccion(lista[0]), lista);
+    if (seccion === ANTES_DE_CORTAS) html += tablaCortas(ts);
+  }
+  $("#secciones").innerHTML = html;
+}
+
+const ORDEN_SECCIONES = ["Ley NY – Cable", "Ley Inglesa – Cable", "Ley ARG – MEP", "Ley ARG – Cable", "Ley NY – MEP", "Ley Inglesa – MEP", "Dólar Linked", "en Pesos"];
+const ORDEN_ONS = ["Ley ARG – MEP", ...ORDEN_SECCIONES.filter(s => s !== "Ley ARG – MEP")];
+const ANTES_DE_CORTAS = "ONs Ley ARG – MEP";
+function ordenSeccion(seccion) {
+  const [prefijo, ...resto] = seccion.split(" "), sufijo = resto.join(" ");
+  const lista = prefijo === "ONs" ? ORDEN_ONS : ORDEN_SECCIONES;
+  const k = lista.indexOf(sufijo);
+  return (prefijo === "ONs" ? 0 : 100) + (k < 0 ? lista.length : k);
+}
+
+const PAGO = { CABLE: "Cable", MEP: "MEP", DL: "Dólar linked", PESOS: "Pesos" };
+function marcaSupuesto(t) {
+  return t.pago_supuesto ? `<span class="supuesto" title="El Monitoreo de Docta no informa la moneda del cupón: se supone MEP por ser ley local">?</span>` : "";
+}
+
+function alerta(tc, ref) { return tc != null && Math.abs(tc / ref - 1) > 0.02 ? "a" : ""; }
+
+// Fuera de BYMA, la hora del último precio al pasar el mouse y, en «Todos», el mercado si no es BYMA.
+function celdaPrecio(t) {
+  const txt = precio(t.precio) + (t.precio_alternativo ? "*" : ""), u = t.ultimo;
+  if (!u) return txt;
+  const tip = `Último: ${u.mercado}${u.hora ? " " + u.hora : ""}${u.pase ? " (pase)" : ""}`;
+  return `<span title="${tip}">${txt}</span>` + (E.mercadoResumen === "Todos" && u.mercado !== "BYMA" ? `<span class="mk">${u.mercado}</span>` : "");
+}
+
+function columnasSeccion(t0) {
+  const ctx = E.datos.contexto, hd = hardDollar(t0), dl = t0.pago === "DL";
+  const cols = [
+    { id: "especie", t: "Especie", l: 1, v: t => t.especie, h: t => `<span class="esp">${esc(t.especie)}</span>${marcaSupuesto(t)}` },
+    { id: "emisor", t: "Emisor", l: 1, v: t => t.emisor, h: t => esc(t.emisor) },
+    { id: "vto", t: "Vto.", v: t => t.vto, h: t => fechaCorta(t.vto) },
+    { id: "cupon", t: hd || dl ? "Cupón" : "Tasa", l: 1, v: t => t.cupon, h: t => esc(t.cupon) },
+    { id: "precio", t: hd ? (t0.pago === "CABLE" ? "Precio C" : "Precio D") : "Precio ARS", v: t => t.precio, h: celdaPrecio },
+    // La variación es contra el cierre anterior de BYMA: solo en BYMA.
+    ...E.mercadoResumen === "BYMA" ? [{ id: "var", t: "Var.", v: t => t.var, h: t => varTxt(t.var), c: t => signo(t.var) || (t.var == null ? "m" : "") }] : [],
+    { id: "tir", t: dl ? "TIR USD" : "TIR", v: t => t.tir, h: t => (t.tir != null && t.fuente_flujo === "estimado" ? "≈" : "") + pct(t.tir), c: t => t.tir == null ? "m" : "" },
+  ];
+  if (hd) cols.push(
+    { id: "vol_usd", t: "Vol. USD", v: t => t.vol_usd, h: t => num(t.vol_usd, 0) },
+    { id: "tc_mep", t: "TC MEP", v: t => t.tc_mep, h: t => num(t.tc_mep), c: t => t.tc_mep == null ? "m" : alerta(t.tc_mep, ctx.mep) },
+    { id: "tc_ccl", t: "TC CCL", v: t => t.tc_ccl, h: t => num(t.tc_ccl), c: t => t.tc_ccl == null ? "m" : alerta(t.tc_ccl, ctx.ccl) });
+  else cols.push({ id: "vol_ars", t: "Vol. ARS M", v: t => t.vol_ars, h: t => num(t.vol_ars / 1e6, 1) });
+  return cols;
+}
+
+function ordenar(filas, cols, orden) {
+  if (!orden) return filas;
+  const col = cols.find(c => c.id === orden.campo);
+  if (!col) return filas;
+  return filas.slice().sort((a, b) => {
+    const x = col.v(a), y = col.v(b);
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * orden.dir;
+  });
+}
+
+function cabecera(cols, orden, tabla) {
+  return "<thead><tr>" + cols.map(c => {
+    const o = orden && orden.campo === c.id ? ` ord${orden.dir > 0 ? " asc" : ""}` : "";
+    return `<th class="${c.l ? "l" : ""}${o}" data-orden="${c.id}" data-tabla="${tabla}" title="Ordenar">${c.t}</th>`;
+  }).join("") + "</tr></thead>";
+}
+
+function celdas(cols, f) {
+  return cols.map(c => {
+    const cl = [c.l ? "l" : "", c.c ? c.c(f) : ""].filter(Boolean).join(" ");
+    return `<td${cl ? ` class="${cl}"` : ""}>${c.h(f)}</td>`;
+  }).join("");
+}
+
+function tablaTitulos(cols, lista) {
+  const filas = ordenar(lista, cols, E.ordenResumen);
+  return `<div class="scroll"><table>${cabecera(cols, E.ordenResumen, "resumen")}<tbody>` +
+    filas.map(t => `<tr class="clic" data-especie="${esc(t.especie)}" title="Ver las operaciones de ${esc(t.especie)}">${celdas(cols, t)}</tr>`).join("") +
+    "</tbody></table></div>";
+}
+
+function tablaCortas(ts) {
+  const ctx = E.datos.contexto, hasta = sumarDias(E.datos.fecha, 365);
+  const lista = ts.filter(t => t.clase === "ON" && t.tc_vto && (t.vto || "").slice(0, 10) > ctx.liquidacion && (t.vto || "").slice(0, 10) <= hasta)
+    .sort((a, b) => a.vto.localeCompare(b.vto));
+  if (!lista.length) return "";
+  const contra = t => t.tc_vto / (t.pago === "CABLE" ? ctx.ccl : ctx.mep) - 1;
+  const dias = t => Math.round((new Date(t.vto.slice(0, 10) + "T12:00:00") - new Date(ctx.liquidacion + "T12:00:00")) / 864e5);
+  const cols = [
+    { id: "especie", t: "Especie", l: 1, v: t => t.especie, h: t => `<span class="esp">${esc(t.especie)}</span>` },
+    { id: "emisor", t: "Emisor", l: 1, v: t => t.emisor, h: t => esc(t.emisor) },
+    { id: "pago", t: "Pago", l: 1, v: t => t.pago, h: t => `${esc(t.ley)} · ${t.pago === "CABLE" ? "Cable" : "MEP"}` },
+    { id: "vto", t: "Vto.", v: t => t.vto, h: t => fechaCorta(t.vto) },
+    { id: "dias", t: "Días", v: dias, h: t => dias(t) },
+    { id: "precio_ars", t: "Precio $", v: t => t.precio_ars, h: t => num(t.precio_ars, 0) },
+    { id: "cobro_usd", t: "Cobra USD", v: t => t.cobro_usd, h: t => num(t.cobro_usd) },
+    { id: "tc_vto", t: "TC al vto.", v: t => t.tc_vto, h: t => `<b>${num(t.tc_vto)}</b>` },
+    { id: "contra", t: "vs hoy", v: contra, h: t => (contra(t) > 0 ? "+" : "") + pct(contra(t)), c: t => contra(t) < 0 ? "p" : contra(t) > 0 ? "n" : "" },
+    { id: "tir", t: "TIR", v: t => t.tir, h: t => pct(t.tir), c: t => t.tir == null ? "m" : "" },
+    { id: "vol_usd", t: "Vol. USD", v: t => t.vol_usd, h: t => num(t.vol_usd, 0) },
+  ];
+  return `<h2>Dólar implícito al vencimiento <small>· ONs que vencen en menos de 1 año · ${operados(lista.length)}</small></h2>` + tablaTitulos(cols, lista);
+}
+
+// ---------------------------------------------------------------- detalle por título
+// Lo operado en SENEBI y MAE, en USD como el volumen del mail (pesos al MEP de referencia), sin los pases.
+function volOtros(t) {
+  const monedaDe = monedasDe(t);
+  const usd = os => sumar(os, o => o[3] * o[4] / 100 / (monedaDe[o[1]] === "ARS" ? E.datos.contexto.mep : 1));
+  const otras = t.operaciones.filter(o => mercadoOp(o) !== "BYMA"), contado = otras.filter(o => o[6] !== PASE);
+  return {
+    n: otras.length, vn: sumar(otras, o => o[3]), contado: usd(contado), pases: usd(otras.filter(o => o[6] === PASE)),
+    porMercado: MERCADOS.slice(1).map(m => [m, usd(contado.filter(o => mercadoOp(o) === m))]).filter(([, v]) => v > 0),
+  };
+}
+
+function pintarDetalle() {
+  const chip = (t, vol) => `<button class="chip" data-especie="${esc(t.especie)}"><b>${esc(t.especie)}</b> ${usdCorto(vol).slice(4)}</button>`;
+  const top = E.datos.titulos.filter(enByma).sort((a, b) => b.vol_usd - a.vol_usd).slice(0, 12);
+  const soloOtros = E.datos.titulos.filter(t => !enByma(t)).map(t => [t, volOtros(t).contado]).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  $("#chips").innerHTML = `<span style="color:var(--gris)">Más operados:</span>` + top.map(t => chip(t, t.vol_usd)).join("") +
+    (soloOtros.length ? `<span style="flex-basis:100%"></span><span style="color:var(--gris)" title="Títulos que no operaron en BYMA: no están en el mail ni en el resumen de BYMA (sí en el de SENEBI, MAE o Todos)">Solo en SENEBI/MAE:</span>` +
+      soloOtros.map(([t, v]) => chip(t, v)).join("") : "");
+  if (document.activeElement !== $("#ticker")) $("#ticker").value = E.especie || "";
+  const t = E.especie && E.porEspecie[E.especie];
+  if (!E.especie) { $("#detalle").innerHTML = `<div class="vacio">Elegí un título: escribí el ticker, tocá uno de los más operados o hacé clic en una fila del resumen.</div>`; return; }
+  if (!t) { $("#detalle").innerHTML = `<div class="vacio"><b>${esc(E.especie)}</b> no operó el ${fechaCorta(E.fecha)}.</div>`; return; }
+
+  const ctx = E.datos.contexto, hd = hardDollar(t);
+  const monedaDe = monedasDe(t);
+  const byma = enByma(t), vo = volOtros(t);
+  const vnTotal = sumar(t.segmentos.filter(s => mercadoSeg(s) === "BYMA"), s => s.vn);
+  const nOps = t.operaciones.filter(o => mercadoOp(o) === "BYMA").length;
+  const kp = byma ? [
+    [hd ? (t.pago === "CABLE" ? "Precio C" : "Precio D") : "Precio ARS", precio(t.precio) + (t.precio_alternativo ? "*" : ""), ""],
+    ["Variación", `<span class="${signo(t.var)}">${varTxt(t.var)}</span>`, ""],
+    [t.pago === "DL" ? "TIR USD" : "TIR", (t.tir != null && t.fuente_flujo === "estimado" ? "≈" : "") + pct(t.tir), t.md != null ? `Dur. mod. ${num(t.md)}` : ""],
+    ["Volumen BYMA", hd ? usdCorto(t.vol_usd) : `$ ${num(t.vol_ars / 1e6, 1)} M`, hd ? "" : usdCorto(t.vol_usd) + " eq."],
+    ["VN operado BYMA", num(vnTotal, 0), `${nOps} ${nOps === 1 ? "operación" : "operaciones"}`],
+  ] : [];
+  if (vo.n) {
+    const detalle = vo.porMercado.map(([m, v]) => `${m} ${usdCorto(v).slice(4)}`);
+    if (vo.pases) detalle.push(`pases ${usdCorto(vo.pases).slice(4)}`);
+    kp.push(["SENEBI + MAE", usdCorto(vo.contado), detalle.join(" · ")]);
+    if (!byma) kp.push(["VN operado", num(vo.vn, 0), `${vo.n} ${vo.n === 1 ? "operación" : "operaciones"}`]);
+  }
+  if (hd && byma) kp.push(
+    ["TC MEP implícito", num(t.tc_mep), t.tc_mep ? `${varTxt((t.tc_mep / ctx.mep - 1) * 100)} vs ${ctx.referencia_fx}` : ""],
+    ["TC CCL implícito", num(t.tc_ccl), t.tc_ccl ? `${varTxt((t.tc_ccl / ctx.ccl - 1) * 100)} vs ${ctx.referencia_fx}` : ""]);
+  const tickers = Object.entries(t.tickers).sort((a, b) => "ARS USD EXT".indexOf(a[0]) - "ARS USD EXT".indexOf(b[0])).map(([, v]) => v).join(" · ");
+  const pago = t.pago_supuesto
+    ? `<span class="supuesto-txt" title="El Monitoreo de Docta no informa la moneda del cupón">Pago: ${PAGO[t.pago]} (supuesto)</span>`
+    : `Pago: ${PAGO[t.pago] || esc(t.pago)}`;
+  let html = `<div class="ficha"><h3>${esc(t.especie)}<span>${esc(t.emisor)}</span></h3>
+    <div class="sub">${byma ? "" : `<b>No operó en BYMA</b> · `}${esc(t.seccion)} · ${pago} · Vto. ${fechaCorta(t.vto)} · ${t.pago === "PESOS" ? "Tasa" : "Cupón"} ${esc(t.cupon)} · ${esc(tickers)}${t.isin ? " · ISIN " + esc(t.isin) : ""}${t.fuente_flujo ? " · Flujo: " + esc(t.fuente_flujo) : ""}</div>
+    <div class="kpis">${kp.map(([a, b, c]) => `<div class="kpi"><span>${a}</span><b>${b}</b>${c ? `<i>${c}</i>` : ""}</div>`).join("")}</div></div>`;
+
+  // Segmentos
+  html += `<h2>Por segmento <small>· clic en una fila para filtrar las operaciones</small></h2><div class="scroll"><table><thead><tr>
+    <th class="l">Mercado</th><th class="l">Ticker</th><th class="l">Moneda</th><th class="l">Plazo</th><th>Último</th><th>Var.</th><th>TIR</th><th>VN</th><th>Monto</th><th>Operaciones</th></tr></thead><tbody>` +
+    t.segmentos.map(s => {
+      const m = mercadoSeg(s), sel = E.mercado === m && E.moneda === s.moneda && E.plazo === s.plazo ? " sel" : "";
+      return `<tr class="clic${sel}" data-seg="${m}|${s.moneda}|${s.plazo}"><td class="l">${m}</td><td class="l esp">${esc(s.ticker)}</td><td class="l">${MONEDA[s.moneda]}</td><td class="l">${s.plazo}</td>
+      <td>${precio(s.precio)}</td><td class="${signo(s.var) || (s.var == null ? "m" : "")}">${varTxt(s.var)}</td><td class="${s.tir == null ? "m" : ""}">${pct(s.tir)}</td>
+      <td>${num(s.vn, 0)}</td><td>${DIVISA[s.moneda]} ${num(s.monto, 0)}</td><td>${s.operaciones}</td></tr>`;
+    }).join("") + "</tbody></table></div>";
+
+  // Filtros
+  const mercados = new Set(t.segmentos.map(mercadoSeg)), monedas = new Set(t.segmentos.map(s => s.moneda)), plazos = new Set(t.segmentos.map(s => s.plazo));
+  const boton = (grupo, valor, texto, ok = true) => `<button data-${grupo}="${valor}" class="${E[grupo] === valor ? "activa" : ""}"${ok ? "" : " disabled"}>${texto}</button>`;
+  const ops = t.operaciones.filter(o => (E.mercado === "todos" || mercadoOp(o) === E.mercado)
+    && (E.moneda === "todas" || monedaDe[o[1]] === E.moneda) && (E.plazo === "todos" || o[2] === E.plazo));
+  const vnF = sumar(ops, o => o[3]);
+  const unaMoneda = new Set(ops.map(o => monedaDe[o[1]])).size === 1;
+  const vwap = unaMoneda && vnF ? sumar(ops, o => o[3] * o[4]) / vnF : null;
+  const pases = ops.filter(o => o[6] === PASE);
+  html += `<h2>Operaciones del ${fechaCorta(E.fecha)}</h2>
+    <div class="herramientas">
+      <span class="grupo">${boton("mercado", "todos", "Todos")}${MERCADOS.map(m => boton("mercado", m, m, mercados.has(m))).join("")}</span>
+      <span class="grupo">${boton("moneda", "todas", "Todas")}${["ARS", "USD", "EXT"].map(m => boton("moneda", m, MONEDA[m], monedas.has(m))).join("")}</span>
+      <span class="grupo">${boton("plazo", "todos", "Todos")}${["24hs", "CI"].map(p => boton("plazo", p, p, plazos.has(p))).join("")}</span>
+      <span class="grupo">${boton("modo", "ops", "Operaciones")}${boton("modo", "precios", "Por precio")}</span>
+      <span class="resumen-ops"><b>${ops.length}</b> ${ops.length === 1 ? "operación" : "operaciones"} · VN <b>${num(vnF, 0)}</b>${vwap != null ? ` · Precio prom. pond. <b>${precio(vwap)}</b>` : ""}${pases.length ? ` · ${pases.length} en pases CI/24hs (VN ${num(sumar(pases, o => o[3]), 0)})` : ""}</span>
+    </div>`;
+  html += E.modo === "ops" ? tablaOperaciones(ops, monedaDe) : tablaPrecios(ops, monedaDe);
+  $("#detalle").innerHTML = html;
+}
+
+const TXT_PASE = "Misma cantidad en CI y 24hs, en el mismo ticker y con menos de un minuto de diferencia: pase (se compra en un plazo y se vende en el otro para financiarse o colocar por un día), no una compra o venta de contado";
+
+function tablaOperaciones(ops, monedaDe) {
+  if (!ops.length) return `<div class="vacio">Sin operaciones con ese filtro.</div>`;
+  const cols = [
+    { id: "hora", t: "Hora", v: o => o[0], h: o => o[6] === APROX ? `<span title="Operaciones anteriores al primer registro de BYMA: hora y precio aproximados">≤ ${o[0]}</span>` : o[0] },
+    { id: "mercado", t: "Mercado", l: 1, v: o => mercadoOp(o), h: o => mercadoOp(o) },
+    { id: "ticker", t: "Ticker", l: 1, v: o => o[1], h: o => `<span class="esp">${esc(o[1])}</span> <span class="m">${MONEDA[monedaDe[o[1]]]}</span>` },
+    { id: "plazo", t: "Plazo", l: 1, v: o => o[2], h: o => o[2] + (o[6] === PASE ? `<span class="pase" title="${TXT_PASE}">pase</span>` : "") },
+    { id: "vn", t: "VN", v: o => o[3], h: o => `<b>${num(o[3], 0)}</b>` },
+    { id: "precio", t: "Precio", v: o => o[4], h: o => precio(o[4]) },
+    { id: "tir", t: "TIR", v: o => o[5], h: o => pct(o[5]), c: o => o[5] == null ? "m" : "" },
+    { id: "monto", t: "Monto", v: o => o[3] * o[4] / 100, h: o => `${DIVISA[monedaDe[o[1]]]} ${num(o[3] * o[4] / 100, 0)}` },
+  ];
+  const filas = ordenar(ops, cols, E.ordenOps);
+  return `<div class="scroll alto"><table>${cabecera(cols, E.ordenOps, "ops")}<tbody>` +
+    filas.map(o => `<tr>${celdas(cols, o)}</tr>`).join("") + "</tbody></table></div>";
+}
+
+function tablaPrecios(ops, monedaDe) {
+  if (!ops.length) return `<div class="vacio">Sin operaciones con ese filtro.</div>`;
+  const grupos = new Map();
+  for (const o of ops) {
+    const k = `${mercadoOp(o)}|${o[1]}|${o[2]}|${o[4]}`;
+    const g = grupos.get(k) || { mercado: mercadoOp(o), ticker: o[1], plazo: o[2], precio: o[4], tir: o[5], vn: 0, n: 0, desde: o[0], hasta: o[0] };
+    g.vn += o[3]; g.n += 1;
+    if (o[0] < g.desde) g.desde = o[0];
+    if (o[0] > g.hasta) g.hasta = o[0];
+    grupos.set(k, g);
+  }
+  const cols = [
+    { id: "mercado", t: "Mercado", l: 1, v: g => g.mercado, h: g => g.mercado },
+    { id: "ticker", t: "Ticker", l: 1, v: g => g.ticker, h: g => `<span class="esp">${esc(g.ticker)}</span> <span class="m">${MONEDA[monedaDe[g.ticker]]}</span>` },
+    { id: "plazo", t: "Plazo", l: 1, v: g => g.plazo, h: g => g.plazo },
+    { id: "precio", t: "Precio", v: g => g.precio, h: g => precio(g.precio) },
+    { id: "tir", t: "TIR", v: g => g.tir, h: g => pct(g.tir), c: g => g.tir == null ? "m" : "" },
+    { id: "vn", t: "VN", v: g => g.vn, h: g => `<b>${num(g.vn, 0)}</b>` },
+    { id: "n", t: "Operaciones", v: g => g.n, h: g => g.n },
+    { id: "desde", t: "Primera", v: g => g.desde, h: g => g.desde },
+    { id: "hasta", t: "Última", v: g => g.hasta, h: g => g.hasta },
+    { id: "monto", t: "Monto", v: g => g.vn * g.precio / 100, h: g => `${DIVISA[monedaDe[g.ticker]]} ${num(g.vn * g.precio / 100, 0)}` },
+  ];
+  const filas = ordenar([...grupos.values()], cols, E.ordenPrecios);
+  return `<div class="scroll alto"><table>${cabecera(cols, E.ordenPrecios, "precios")}<tbody>` +
+    filas.map(g => `<tr>${celdas(cols, g)}</tr>`).join("") + "</tbody></table></div>";
+}
+
+function pintarNotas() {
+  const ctx = E.datos.contexto;
+  const notas = E.vista === "resumen" ? [
+    `Fuente de precios: ${ctx.fuente}. Último precio del segmento 24hs (T+1); si no operó, contado inmediato. Volumen: suma de los segmentos pesos, MEP y cable (24hs + CI), en USD al MEP de referencia.`,
+    `TIR efectiva anual (act/365) sobre precio sucio, liquidación ${fechaCorta(ctx.liquidacion)}, con el flujo de fondos de ${ctx.fuente_flujos}. Hard dollar: precio C para las que pagan en cable y D para las MEP. Dólar linked: TIR en dólares (A3500 del BCRA). En pesos: tasa variable vigente, sin proyección. ≈ flujo estimado desde la ficha de BYMA.`,
+    `TC implícito = precio en pesos / precio en dólares del mismo plazo. Resaltados: desvío mayor a 2% respecto del ${ctx.referencia_fx}. * No operó en la moneda de pago: precio del otro segmento.`,
+    "Moneda de pago (MEP o cable) y dólar linked: según el Monitoreo de Docta Terminal; las ley NY, cable. ? Ley local sin moneda del cupón en el Monitoreo: se supone MEP (se corrige en overrides.csv).",
+    "Dólar implícito al vencimiento = precio en pesos / dólares a cobrar hasta el vencimiento (cada 100 VN). «vs hoy»: contra el MEP (CCL si paga en cable); negativo = dólar más barato que hoy.",
+    "Mercado: BYMA es lo mismo que el mail. SENEBI (bilateral de BYMA) y MAE: último precio de cada segmento y volumen, los dos sin contar los pases CI/24hs (su total va aparte). Todos: suma el volumen de los tres y toma el último precio operado en cualquiera de ellos (si no es de BYMA, se indica cuál). Fuera de BYMA la hora del último precio se ve al pasar el mouse, y no hay variación (es contra el cierre anterior de BYMA).",
+    "Por defecto se muestran los títulos con volumen mayor al mínimo, como en el mail. Clic en una fila para ver sus operaciones; clic en un encabezado para ordenar.",
+  ] : [
+    "Operaciones de BYMA y SENEBI (segmento bilateral de BYMA): registro intradiario de BYMA. El VN de cada operación sale de la diferencia del volumen acumulado entre registros; las anulaciones ya están descontadas. Operaciones en el mismo segundo pueden aparecer juntas.",
+    "MAE (A3 Mercados): operaciones del sitio de Market Data de A3, segmentos bilateral y garantizado; precios llevados a cada 100 VN. El mail es solo de BYMA; en el resumen se elige el mercado. Los que no operaron en BYMA están en «Solo en SENEBI/MAE» (o se buscan por ticker).",
+    "pase: en SENEBI o MAE, la misma cantidad en CI y en 24hs, en el mismo ticker y con menos de un minuto de diferencia. Es un pase (se compra en un plazo y se vende en el otro: financiación o colocación por un día; la diferencia de precio entre las dos patas es la tasa de ese día), no una compra o venta de contado, y no se suma al volumen «SENEBI + MAE».",
+    `TIR de cada operación a su precio, con liquidación según el plazo (CI: ${fechaCorta(E.datos.fecha)}; 24hs: ${fechaCorta(ctx.liquidacion)}). En los hard dollar, las operaciones en pesos se pasan a dólares al ${ctx.referencia_fx} del día (CCL si paga en cable, MEP si no). Dólar linked: TIR en dólares al A3500.`,
+    "≤ Operaciones anteriores al primer registro de BYMA: van juntas, con la hora del primer registro y el precio máximo informado hasta ese momento.",
+  ];
+  $("#notas").innerHTML = notas.map(n => `<p>${esc(n)}</p>`).join("");
+}
+
+// ---------------------------------------------------------------- eventos
+document.addEventListener("click", ev => {
+  const th = ev.target.closest("th[data-orden]");
+  if (th) {
+    const clave = { resumen: "ordenResumen", ops: "ordenOps", precios: "ordenPrecios" }[th.dataset.tabla];
+    const actual = E[clave], campo = th.dataset.orden;
+    const texto = ["especie", "emisor", "cupon", "pago", "mercado", "ticker", "plazo", "vto", "hora", "desde", "hasta"].includes(campo);
+    E[clave] = actual && actual.campo === campo ? { campo, dir: -actual.dir } : { campo, dir: texto ? 1 : -1 };
+    return pintar();
+  }
+  const fila = ev.target.closest("[data-especie]");
+  if (fila) {
+    // Desde el resumen de SENEBI o MAE, el detalle abre con las operaciones de ese mercado.
+    const filtro = fila.closest("#vista-resumen") && ["SENEBI", "MAE"].includes(E.mercadoResumen) ? E.mercadoResumen : undefined;
+    return irA("operaciones", fila.dataset.especie, filtro);
+  }
+  const vm = ev.target.closest("[data-mercado-resumen]");
+  if (vm) {
+    if (!vm.disabled) { E.mercadoResumen = vm.dataset.mercadoResumen; escribirHash(); pintar(); }
+    return;
+  }
+  const seg = ev.target.closest("tr[data-seg]");
+  if (seg) {
+    const [mk, m, p] = seg.dataset.seg.split("|");
+    if (E.mercado === mk && E.moneda === m && E.plazo === p) Object.assign(E, { mercado: "todos", moneda: "todas", plazo: "todos" });
+    else Object.assign(E, { mercado: mk, moneda: m, plazo: p });
+    return pintar();
+  }
+  const b = ev.target.closest("[data-mercado],[data-moneda],[data-plazo],[data-modo]");
+  if (b && !b.disabled) {
+    for (const k of ["mercado", "moneda", "plazo", "modo"]) if (b.dataset[k]) E[k] = b.dataset[k];
+    return pintar();
+  }
+  const tab = ev.target.closest(".tab");
+  if (tab) return irA(tab.dataset.vista);
+});
+
+$("#dia").addEventListener("change", ev => cargarDia(ev.target.value));
+$("#actualizar").addEventListener("click", () => cargarDia(E.fecha, { actualizar: true, silencioso: !!E.datos }));
+$("#buscar").addEventListener("input", ev => { E.busqueda = ev.target.value; pintarResumen(); });
+$("#minimo").addEventListener("change", ev => {
+  const v = parseFloat(ev.target.value.replace(/\./g, "").replace(",", "."));
+  E.minimo = isNaN(v) ? E.minimoDefecto : Math.max(0, v);
+  ev.target.value = num(E.minimo, 0);
+  pintarResumen();
+});
+function elegirTicker(valor) {
+  const v = valor.trim().toUpperCase();
+  if (!v) return;
+  irA("operaciones", (E.porTicker[v] || v));
+}
+$("#ticker").addEventListener("change", ev => elegirTicker(ev.target.value));
+$("#ticker").addEventListener("keydown", ev => { if (ev.key === "Enter") elegirTicker(ev.target.value); });
+window.addEventListener("hashchange", () => {
+  const h = leerHash();
+  if (h.dia && h.dia !== E.fecha) { Object.assign(E, { vista: h.vista, especie: h.t, mercadoResumen: h.mercado }); return cargarDia(h.dia); }
+  if (h.vista !== E.vista || h.t !== E.especie || h.mercado !== E.mercadoResumen) {
+    Object.assign(E, { vista: h.vista, especie: h.t, mercadoResumen: h.mercado });
+    pintar();
+  }
+});
+
+// ---------------------------------------------------------------- inicio
+(async () => {
+  const h = leerHash();
+  Object.assign(E, { vista: h.vista, especie: h.t, mercadoResumen: h.mercado });
+  $("#actualizar").hidden = WEB;
+  try {
+    await cargarDias();
+  } catch (e) {
+    aviso(WEB
+      ? `No se pudieron cargar los datos: ${esc(e.message)}.`
+      : `No se pudo conectar con el monitor: ${esc(e.message)}. ¿Está abierta la ventana de <code>python -m informe.monitor</code>?`, true);
+    return;
+  }
+  if (!E.dias.length) return aviso("Todavía no hay ruedas publicadas.");
+  if (WEB) setInterval(buscarRuedaNueva, 10 * 60 * 1000);
+  $("#minimo").value = num(E.minimo, 0);
+  const fecha = h.dia && E.dias.includes(h.dia) ? h.dia : E.dias[0];
+  await cargarDia(fecha);
+})();
+</script>
+</body>
+</html>
